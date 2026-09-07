@@ -1,0 +1,47 @@
+# Secrets and local env
+.env
+.venv/
+venv/
+env/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+dist/
+build/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+.DS_Store
+
+# Qdrant / local data volumes
+qdrant_storage/
+
+# Model caches
+.cache/
+*.bin
+*.onnx
+
+# OS
+Thumbs.db
+
+# Private lab — not part of the public Atlantic product repo
+context/
+plans/
+plans-atlantic/
+prompt.md
+
+# Generated eval outputs (corpus + benchmark_eval.json stay tracked)
+data/eval/ragas_report.md
+data/eval/ragas_report.json
+data/eval/ragas_cache/
