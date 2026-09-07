@@ -1,0 +1,13 @@
+DOCUMENT_ID: POLICY-2025-002
+TITLE: Enterprise Remote Work Policy (2025 Revised)
+EFFECTIVE DATE: January 1, 2025
+STATUS: Active / Current (Supersedes POLICY-2024-001)
+
+1. Hybrid & Remote Work Framework
+Effective January 1, 2025, this policy replaces all prior remote work guidelines (including POLICY-2024-001):
+- Tier 1 Roles (Engineering, Product, Architecture): Fully remote allowed without special manager sign-off.
+- Tier 2 Roles (Operations, Sales, HR): Up to three (3) days remote per week.
+- Tier 3 Roles (On-site Facilities, Datacenter Ops): 100% on-site required.
+
+2. Home Office Allowance Update
+The home office stipend has been increased to $750 USD per calendar year (renewable annually). Purchases must be routed directly through the IT Procurement Portal rather than submitted as manual expense reports.

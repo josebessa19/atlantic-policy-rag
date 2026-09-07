@@ -1,0 +1,10 @@
+# Runtime
+fastapi
+uvicorn
+qdrant-client
+google-genai
+python-dotenv
+pydantic
+
+# Dev
+pytest

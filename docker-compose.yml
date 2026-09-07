@@ -1,0 +1,14 @@
+# Qdrant only for now. API service arrives later (Step 6);
+# until then run the API on the host with uvicorn.
+
+services:
+  qdrant:
+    image: qdrant/qdrant:v1.13.2
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant_storage:/qdrant/storage
+
+volumes:
+  qdrant_storage:

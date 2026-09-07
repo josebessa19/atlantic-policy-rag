@@ -1,0 +1,12 @@
+DOCUMENT_ID: IT-SPEC-2025-A
+TITLE: Global IT Hardware & Expense Matrix
+
+The following monthly and initial hardware caps apply to all full-time employees:
+
+| Region      | Laptop Allowance (Max) | External Monitor Cap | Monthly Mobile Stipend |
+| :---------- | :--------------------- | :------------------- | :--------------------- |
+| US / Canada | $2,000 USD             | $350 USD             | $75 USD                |
+| EMEA        | €1,800 EUR             | €300 EUR             | €60 EUR                |
+| APAC        | $2,200 USD             | $300 USD             | $80 USD                |
+
+Note: Laptops in EMEA and APAC must be selected from the standardized Apple or Dell corporate catalog. Custom builds require approval from the VP of Infrastructure.
