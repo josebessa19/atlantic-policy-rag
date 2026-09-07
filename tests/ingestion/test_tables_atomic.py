@@ -1,13 +1,17 @@
 """Tables must stay atomic — never split across chunks."""
 
-from src.ingestion.chunking import ChunkConfig, chunk_document, chunk_markdown
+from pathlib import Path
+
+from src.ingestion.chunking import ChunkConfig, chunk_document
 from src.ingestion.models import (
     DocumentMetadata,
     HeadingElement,
     ParagraphElement,
     ParsedDocument,
+    PolicyMetadata,
     TableElement,
 )
+from src.ingestion.pipeline import parse_dir
 
 TABLE_MD = (
     "| Region | Laptop allowance (USD) | Monitor allowance (USD) |\n"
@@ -26,6 +30,8 @@ TABLE_ROWS = [
     ["LATAM", "900", "200"],
 ]
 
+RAW_DIR = Path(__file__).resolve().parents[2] / "data" / "raw"
+
 
 def _hardware_doc() -> ParsedDocument:
     return ParsedDocument(
@@ -39,6 +45,7 @@ def _hardware_doc() -> ParsedDocument:
             ParagraphElement(text="Example: EMEA laptop allowance is 1200 USD."),
         ],
         metadata=DocumentMetadata(parser_name="fake"),
+        policy=PolicyMetadata(document_id="IT-SPEC-2025-A", title="IT Hardware Allowance Matrix"),
     )
 
 
@@ -55,22 +62,14 @@ def test_structure_table_atomic() -> None:
         assert "Americas" in c.text or "Region" in c.text
 
 
-def test_markdown_table_atomic() -> None:
-    md = f"""# Policy
-
-## Regional allowances
-
-Some intro.
-
-{TABLE_MD}
-
-Example after table.
-"""
-    chunks = chunk_markdown(md, source="IT_Hardware_Allowance_Matrix.txt", config=ChunkConfig(max_tokens=40))
-    table_chunks = [c for c in chunks if c.chunk_type == "table"]
-    assert len(table_chunks) == 1
-    assert "EMEA" in table_chunks[0].text
-    assert "1200" in table_chunks[0].text
-    for c in chunks:
-        if c.chunk_type != "table" and "| EMEA |" in c.text:
-            raise AssertionError("table row leaked into non-table chunk")
+def test_real_matrix_table_atomic_with_euro_figures() -> None:
+    """Hardware matrix: one table chunk with all regions + EMEA euro amounts."""
+    chunks = parse_dir(RAW_DIR)
+    matrix = [c for c in chunks if c.document_id == "IT-SPEC-2025-A" and c.chunk_type == "table"]
+    assert len(matrix) == 1
+    text = matrix[0].text
+    assert "EMEA" in text
+    assert "US / Canada" in text
+    assert "€1,800" in text
+    assert "€60" in text
+    assert "APAC" in text

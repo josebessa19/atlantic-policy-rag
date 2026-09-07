@@ -13,17 +13,20 @@ def test_chunk_config_defaults() -> None:
 
 def test_chunk_model_fields() -> None:
     c = Chunk(
-        id="sec-abc",
-        text="[Workplace Flexibility]\nHello",
+        id="POLICY-2025-002:workplace-flexibility:0",
+        text="Document POLICY-2025-002 (Active) | Section: Workplace Flexibility\nHello",
         section_path="Workplace Flexibility",
         source="Global_Remote_Work_Policy_2025_Update.txt",
         chunk_type="section",
         token_estimate=10,
+        document_id="POLICY-2025-002",
+        status="active",
     )
     assert c.chunk_type == "section"
     assert c.section_path == "Workplace Flexibility"
+    assert c.document_id == "POLICY-2025-002"
     dumped = c.model_dump()
-    assert dumped["text"].startswith("[Workplace Flexibility]")
+    assert dumped["text"].startswith("Document POLICY-2025-002 (Active)")
 
 
 def test_chunk_document_signature_structure() -> None:
@@ -39,4 +42,5 @@ def test_chunk_document_signature_structure() -> None:
     chunks = chunk_document(doc, ChunkConfig())
     assert len(chunks) >= 1
     assert chunks[0].section_path == "Intro"
-    assert chunks[0].text.startswith("[Intro]")
+    assert chunks[0].text.startswith("Document x (Active) | Section: Intro")
+    assert chunks[0].id == "x:intro:0"

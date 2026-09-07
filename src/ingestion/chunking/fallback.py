@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import logging
 import re
-import uuid
+from datetime import date
+from typing import Literal
 
 from src.ingestion.chunking.models import Chunk, ChunkConfig
-from src.ingestion.chunking.tokens import embed_text, estimate_tokens
+from src.ingestion.chunking.tokens import allocate_chunk_id, embed_text, estimate_tokens
 
 logger = logging.getLogger(__name__)
 
@@ -40,16 +41,31 @@ def _make_partial(
     source: str,
     page: int | None,
     element_index: int | None,
-    id_prefix: str,
+    document_id: str,
+    status: Literal["active", "legacy"],
+    effective_date: date | None,
+    supersedes: list[str],
+    title: str | None,
+    id_counters: dict[str, int],
 ) -> Chunk:
-    text = embed_text(section_path, body)
+    text = embed_text(
+        body,
+        document_id=document_id,
+        status=status,
+        section_path=section_path,
+        title=title,
+    )
     return Chunk(
-        id=f"{id_prefix}-{uuid.uuid4().hex[:8]}",
+        id=allocate_chunk_id(id_counters, document_id, section_path),
         text=text,
         section_path=section_path,
         source=source,
         chunk_type="partial_section",
         token_estimate=estimate_tokens(text),
+        document_id=document_id,
+        status=status,
+        effective_date=effective_date,
+        supersedes=list(supersedes),
         page=page,
         element_index=element_index,
     )
@@ -63,11 +79,25 @@ def _pack_units(
     config: ChunkConfig,
     page: int | None,
     element_index: int | None,
-    id_prefix: str,
+    document_id: str,
+    status: Literal["active", "legacy"],
+    effective_date: date | None,
+    supersedes: list[str],
+    title: str | None,
+    id_counters: dict[str, int],
 ) -> list[Chunk]:
     """Greedy-pack units into chunks under max_tokens."""
     chunks: list[Chunk] = []
     buf = ""
+
+    def _embed(body: str) -> str:
+        return embed_text(
+            body,
+            document_id=document_id,
+            status=status,
+            section_path=section_path,
+            title=title,
+        )
 
     def flush() -> None:
         nonlocal buf
@@ -81,7 +111,12 @@ def _pack_units(
                 source=source,
                 page=page,
                 element_index=element_index,
-                id_prefix=id_prefix,
+                document_id=document_id,
+                status=status,
+                effective_date=effective_date,
+                supersedes=supersedes,
+                title=title,
+                id_counters=id_counters,
             )
         )
         overlap = _overlap_suffix(buf, config.overlap_tokens)
@@ -90,8 +125,7 @@ def _pack_units(
     for unit in units:
         if not unit.strip():
             continue
-        # Single unit too large: try finer split or hard cut
-        unit_embed = embed_text(section_path, unit)
+        unit_embed = _embed(unit)
         if estimate_tokens(unit_embed) > config.max_tokens:
             flush()
             sentences = _split_sentences(unit)
@@ -104,7 +138,12 @@ def _pack_units(
                         config=config,
                         page=page,
                         element_index=element_index,
-                        id_prefix=id_prefix,
+                        document_id=document_id,
+                        status=status,
+                        effective_date=effective_date,
+                        supersedes=supersedes,
+                        title=title,
+                        id_counters=id_counters,
                     )
                 )
             else:
@@ -118,19 +157,22 @@ def _pack_units(
                             source=source,
                             page=page,
                             element_index=element_index,
-                            id_prefix=id_prefix,
+                            document_id=document_id,
+                            status=status,
+                            effective_date=effective_date,
+                            supersedes=supersedes,
+                            title=title,
+                            id_counters=id_counters,
                         )
                     )
             buf = ""
             continue
 
         candidate = f"{buf}\n\n{unit}".strip() if buf.strip() else unit
-        if estimate_tokens(embed_text(section_path, candidate)) > config.max_tokens and buf.strip():
+        if estimate_tokens(_embed(candidate)) > config.max_tokens and buf.strip():
             flush()
             buf = unit if not buf.strip() else f"{buf}\n\n{unit}".strip()
-            # After flush, buf may be overlap + we need to set unit
-            if estimate_tokens(embed_text(section_path, buf)) > config.max_tokens:
-                # overlap alone + unit still too big: start fresh with unit
+            if estimate_tokens(_embed(buf)) > config.max_tokens:
                 buf = unit
         else:
             buf = candidate
@@ -143,7 +185,12 @@ def _pack_units(
                 source=source,
                 page=page,
                 element_index=element_index,
-                id_prefix=id_prefix,
+                document_id=document_id,
+                status=status,
+                effective_date=effective_date,
+                supersedes=supersedes,
+                title=title,
+                id_counters=id_counters,
             )
         )
     return chunks
@@ -157,23 +204,41 @@ def split_oversized_section(
     config: ChunkConfig,
     page: int | None = None,
     element_index: int | None = None,
-    id_prefix: str = "partial",
+    document_id: str = "UNKNOWN",
+    status: Literal["active", "legacy"] = "active",
+    effective_date: date | None = None,
+    supersedes: list[str] | None = None,
+    title: str | None = None,
+    id_counters: dict[str, int] | None = None,
 ) -> list[Chunk]:
     """Split section body under max_tokens; same section_path on every piece."""
     body = body.strip()
     if not body:
         return []
 
-    full = embed_text(section_path, body)
+    supersedes = list(supersedes or [])
+    counters = id_counters if id_counters is not None else {}
+
+    full = embed_text(
+        body,
+        document_id=document_id,
+        status=status,
+        section_path=section_path,
+        title=title,
+    )
     if estimate_tokens(full) <= config.max_tokens:
         return [
             Chunk(
-                id=f"{id_prefix}-{uuid.uuid4().hex[:8]}",
+                id=allocate_chunk_id(counters, document_id, section_path),
                 text=full,
                 section_path=section_path,
                 source=source,
                 chunk_type="section",
                 token_estimate=estimate_tokens(full),
+                document_id=document_id,
+                status=status,
+                effective_date=effective_date,
+                supersedes=supersedes,
                 page=page,
                 element_index=element_index,
             )
@@ -193,7 +258,12 @@ def split_oversized_section(
         config=config,
         page=page,
         element_index=element_index,
-        id_prefix=id_prefix,
+        document_id=document_id,
+        status=status,
+        effective_date=effective_date,
+        supersedes=supersedes,
+        title=title,
+        id_counters=counters,
     )
 
 

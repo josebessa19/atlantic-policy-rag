@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import date
 from enum import Enum
 from pathlib import Path
 from typing import Annotated, Literal
@@ -52,12 +53,23 @@ class DocumentMetadata(BaseModel):
     extra: dict[str, str | int | float | bool | None] = Field(default_factory=dict)
 
 
+class PolicyMetadata(BaseModel):
+    """Document-control fields from the registry header (not buried only in body text)."""
+
+    document_id: str
+    title: str = ""
+    effective_date: date | None = None
+    status: Literal["active", "legacy"] = "active"
+    supersedes: list[str] = Field(default_factory=list)
+
+
 class ParsedDocument(BaseModel):
     source_path: str
     title: str | None = None
     language: str | None = None
     elements: list[DocumentElement] = Field(default_factory=list)
     metadata: DocumentMetadata
+    policy: PolicyMetadata | None = None
 
     @classmethod
     def empty(cls, source_path: Path | str, parser_name: str) -> ParsedDocument:

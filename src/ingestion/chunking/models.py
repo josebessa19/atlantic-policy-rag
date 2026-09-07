@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import date
 from enum import Enum
 from typing import Literal
 
@@ -29,8 +30,12 @@ class Chunk(BaseModel):
     source: str
     chunk_type: Literal["section", "table", "partial_section"]
     token_estimate: int
+    document_id: str
+    status: Literal["active", "legacy"] = "active"
+    effective_date: date | None = None
+    supersedes: list[str] = Field(default_factory=list)
     page: int | None = None
     element_index: int | None = None
 
 
-ChunkStrategy = Literal["structure", "markdown"]
+ChunkStrategy = Literal["structure"]

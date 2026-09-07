@@ -8,6 +8,7 @@ from src.ingestion.models import (
     HeadingElement,
     ParagraphElement,
     ParsedDocument,
+    PolicyMetadata,
     TableElement,
 )
 
@@ -21,12 +22,15 @@ def test_oversized_section_splits() -> None:
         section_path="Policy > Long",
         source="synth.txt",
         config=config,
+        document_id="SYNTH-001",
+        status="active",
     )
     assert len(pieces) >= 2
     for p in pieces:
         assert p.chunk_type == "partial_section"
         assert p.section_path == "Policy > Long"
-        assert estimate_tokens(p.text) <= config.max_tokens + 30
+        assert p.document_id == "SYNTH-001"
+        assert estimate_tokens(p.text) <= config.max_tokens + 40
 
 
 def test_table_not_split_by_fallback() -> None:
@@ -44,6 +48,7 @@ def test_table_not_split_by_fallback() -> None:
             ParagraphElement(text="After table."),
         ],
         metadata=DocumentMetadata(parser_name="fake"),
+        policy=PolicyMetadata(document_id="BIG-TABLE", title="Data"),
     )
     chunks = chunk_document(doc, ChunkConfig(max_tokens=50))
     table_chunks = [c for c in chunks if c.chunk_type == "table"]
