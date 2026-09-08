@@ -1,0 +1,17 @@
+# Optional overlay: inject NVIDIA GPU into the API container.
+# Requires Docker Desktop WSL2 + Windows NVIDIA driver (GPU-PV).
+# Do not use runtime: nvidia (often "unknown runtime" on Docker Desktop).
+#
+#   docker compose -f docker-compose.yml -f docker-compose.gpu.yml up --build
+
+services:
+  api:
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    environment:
+      NVIDIA_VISIBLE_DEVICES: all

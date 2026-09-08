@@ -41,3 +41,9 @@ def qdrant_collection() -> str:
         os.getenv("QDRANT_COLLECTION", DEFAULT_QDRANT_COLLECTION).strip()
         or DEFAULT_QDRANT_COLLECTION
     )
+
+
+def auto_ingest() -> bool:
+    """True when AUTO_INGEST is 1/true/yes. Default off (host pytest must not download BGE-M3)."""
+    raw = os.getenv("AUTO_INGEST", "").strip().lower()
+    return raw in {"1", "true", "yes", "on"}

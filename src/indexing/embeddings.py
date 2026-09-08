@@ -6,9 +6,12 @@ FastEmbed remains only for BM25 sparse vectors in ``store.py``.
 
 from __future__ import annotations
 
+import logging
 from typing import Sequence
 
 from src.indexing.config import embedding_dim, embedding_model
+
+logger = logging.getLogger(__name__)
 
 _model = None
 
@@ -25,12 +28,18 @@ def _resolve_device() -> str:
     return "cpu"
 
 
+def resolve_embedding_device() -> str:
+    """Public helper for startup logs (demo: show cuda vs cpu)."""
+    return _resolve_device()
+
+
 def _get_model():
     global _model
     if _model is None:
         from sentence_transformers import SentenceTransformer
 
         device = _resolve_device()
+        logger.info("Embedding device: %s", device)
         _model = SentenceTransformer(embedding_model(), device=device)
     return _model
 

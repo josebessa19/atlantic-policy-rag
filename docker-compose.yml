@@ -1,5 +1,6 @@
-# Qdrant only for now. API service arrives later (Step 6);
-# until then run the API on the host with uvicorn.
+# Reviewer path: docker compose up --build
+# Does NOT reserve an NVIDIA device — boots on CPU-only laptops.
+# GPU overlay (optional): docker compose -f docker-compose.yml -f docker-compose.gpu.yml up --build
 
 services:
   qdrant:
@@ -9,6 +10,38 @@ services:
       - "6334:6334"
     volumes:
       - qdrant_storage:/qdrant/storage
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/127.0.0.1/6333'"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      # Compose network: API talks to the qdrant service, not localhost
+      QDRANT_URL: http://qdrant:6333
+      AUTO_INGEST: "1"
+      HF_HOME: /home/app/.cache/huggingface
+    volumes:
+      - hf_cache:/home/app/.cache/huggingface
+    depends_on:
+      qdrant:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://127.0.0.1:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 300s
 
 volumes:
   qdrant_storage:
+  hf_cache:
