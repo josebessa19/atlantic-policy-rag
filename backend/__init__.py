@@ -1,1 +1,1 @@
-"""HTTP API package (FastAPI app lands in a later step)."""
+"""HTTP API package (FastAPI app in ``backend.main``)."""
