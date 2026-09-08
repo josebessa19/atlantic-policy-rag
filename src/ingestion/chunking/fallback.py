@@ -66,6 +66,7 @@ def _make_partial(
         status=status,
         effective_date=effective_date,
         supersedes=list(supersedes),
+        title=title or "",
         page=page,
         element_index=element_index,
     )
@@ -239,6 +240,7 @@ def split_oversized_section(
                 status=status,
                 effective_date=effective_date,
                 supersedes=supersedes,
+                title=title or "",
                 page=page,
                 element_index=element_index,
             )

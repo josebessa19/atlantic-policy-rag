@@ -1,0 +1,16 @@
+# Conda environment for Atlantic Policy RAG (GPU BGE-M3 + FastEmbed BM25).
+#
+#   conda env create -f environment.yml
+#   conda activate atlantic-rag
+#   pip install torch --index-url https://download.pytorch.org/whl/cu124
+#   pip install -e ".[dev]"
+#
+# PyTorch CUDA is installed via pip after create (cu124 index is pip-only).
+
+name: atlantic-rag
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.11
+  - pip

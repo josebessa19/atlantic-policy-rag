@@ -34,6 +34,7 @@ class Chunk(BaseModel):
     status: Literal["active", "legacy"] = "active"
     effective_date: date | None = None
     supersedes: list[str] = Field(default_factory=list)
+    title: str = ""
     page: int | None = None
     element_index: int | None = None
 

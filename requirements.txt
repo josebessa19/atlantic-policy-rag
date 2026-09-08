@@ -2,9 +2,15 @@
 fastapi
 uvicorn
 qdrant-client
+fastembed
+sentence-transformers
 google-genai
 python-dotenv
 pydantic
 
+# GPU Torch: install separately into the atlantic-rag conda env, e.g.
+#   pip install torch --index-url https://download.pytorch.org/whl/cu124
+
 # Dev
 pytest
+httpx

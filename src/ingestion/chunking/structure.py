@@ -131,6 +131,7 @@ def chunk_structure(
                     status=status,
                     effective_date=effective_date,
                     supersedes=list(supersedes),
+                    title=title or "",
                     element_index=idx,
                 )
             )

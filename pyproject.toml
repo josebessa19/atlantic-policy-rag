@@ -12,6 +12,8 @@ dependencies = [
     "fastapi",
     "uvicorn",
     "qdrant-client",
+    "fastembed",
+    "sentence-transformers",
     "google-genai",
     "python-dotenv",
     "pydantic",
@@ -20,6 +22,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "pytest",
+    "httpx",
 ]
 
 [tool.setuptools.packages.find]
@@ -29,3 +32,7 @@ include = ["src*", "backend*"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+markers = [
+    "integration: needs Qdrant (and optionally local embedding model download)",
+    "live: runs real FastEmbed model (set RUN_LIVE_EMBEDDING=1)",
+]
