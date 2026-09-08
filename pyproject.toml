@@ -24,6 +24,15 @@ dev = [
     "pytest",
     "httpx",
 ]
+eval = [
+    # Pin: ragas 0.4.x breaks on langchain-community sunset (ChatVertexAI removed).
+    # 0.2.15 + langchain 0.3 stack works with Gemini via OpenAI-compatible endpoint.
+    "ragas==0.2.15",
+    "langchain-openai>=0.2,<0.3",
+    "langchain-community>=0.3,<0.4",
+    "langchain-core>=0.3,<0.4",
+    "datasets>=2.0,<4",
+]
 
 [tool.setuptools.packages.find]
 where = ["."]
@@ -34,5 +43,5 @@ testpaths = ["tests"]
 pythonpath = ["."]
 markers = [
     "integration: needs Qdrant (and optionally local embedding model download)",
-    "live: runs real FastEmbed model (set RUN_LIVE_EMBEDDING=1)",
+    "live: live external deps — BGE-M3 when RUN_LIVE_EMBEDDING=1; benchmark when LIVE=1",
 ]

@@ -14,11 +14,12 @@ Answers grounded in corporate remote-work and IT hardware policies, with citatio
 ## Layout
 
 - `data/raw/` — policy corpus (`.txt`)
-- `data/eval/` — deterministic benchmark JSON
+- `data/eval/` — deterministic benchmark JSON (+ gitignored RAGAS reports)
 - `src/ingestion/` — parse + chunk
 - `src/indexing/` — embeddings + Qdrant hybrid index
 - `src/generation/` — RAG prompt assembly
 - `src/guardrails/` — refusal / injection defenses
+- `src/eval/` — benchmark helpers + RAGAS report CLI
 - `backend/` — HTTP API
 
 ## Setup (conda + GPU)
@@ -70,6 +71,37 @@ pytest tests/ -q
 
 Pipeline: `hybrid_search` → **drop superseded legacy** → injection / low-score refuse (skip LLM) → Gemini Flash → citations from kept hits.
 
+## Evaluate (Step 4)
+
+Deterministic **pytest** is the gate (citation IDs, figures, refusal, injection). **RAGAS** is a separate dashboard (faithfulness + context recall). Both use the same post-temporal-drop contexts the LLM saw.
+
+```bash
+conda activate atlantic-rag
+docker compose up -d qdrant
+python -m src.indexing.ingest   # if collection empty
+pip install -e ".[dev,eval]"
+
+# Default: offline unit + eval helpers (live golden tests skip)
+pytest tests/ -q
+
+# Live golden benchmark (Qdrant + Gemini) — all five TEST-01..05
+LIVE=1 pytest tests/eval/test_benchmark.py -q
+# PowerShell:  $env:LIVE=1; pytest tests/eval/test_benchmark.py -q
+
+# RAGAS report (extra Gemini judge calls; gitignored output)
+python -m src.eval.ragas_report
+# → data/eval/ragas_report.md (+ .json)
+```
+
+| Flag / command | Needs | What it proves |
+|----------------|-------|----------------|
+| `pytest tests/ -q` | nothing live | Unit + offline assertion helpers (TEST-04 covered offline) |
+| `LIVE=1 pytest tests/eval/…` | Qdrant ingested + `GEMINI_API_KEY` | Five JSON categories against the real pipeline |
+| `python -m src.eval.ragas_report` | same + `[eval]` extra | Faithfulness + context recall dashboard |
+| `RUN_LIVE_EMBEDDING=1` | GPU/model download | BGE-M3 dim smoke only (not the benchmark) |
+
+**Known flakiness:** free-tier Gemini RPM/RPD can 429 on live tests or RAGAS (~15–40 judge calls). Retry after a pause. LLM-as-judge scores vary (0.8↔1.0); **do not retune the pipeline for RAGAS** — pytest citation/refusal contracts are authoritative. TEST-03 context recall is N/A; TEST-05 is skipped in RAGAS (injection never generates).
+
 ## Decision Log
 
 | Decision | Options considered | Choice | Why |
@@ -82,3 +114,8 @@ Pipeline: `hybrid_search` → **drop superseded legacy** → injection / low-sco
 | LLM | OpenAI; local LLM; **Gemini Flash** | **`gemini-2.5-flash`** (`GEMINI_API_KEY` generation only) | Free tier; retrieval stays local so Google quota does not break search. |
 | Refusal / skip LLM | Always call model; **empty or top fused RRF &lt; `MIN_FUSED_SCORE` (default 0.02)**; injection patterns | **Skip Gemini** on empty/low retrieval and injection; grounded refuse for off-topic-but-retrieved (e.g. parental leave) | Cheaper and safer than asking the model to be humble on failed retrieval. Score is not a topic classifier — parental leave still hits the LLM under the grounded prompt. |
 | Python env | Base Anaconda; venv; **project conda env** | **`atlantic-rag` (conda + cu124 torch)** | Isolates GPU torch from broken base-env DLLs. |
+| Eval split | RAGAS-only; pytest-only; **both** | **Pytest gate + RAGAS dashboard** | RAGAS cannot assert `must_not_contain_sources` (TEST-01 2024). Pytest locks IDs/refusal/injection; RAGAS speaks metric language in interviews. |
+| RAGAS metrics | +context precision; +answer relevancy/correctness; **faithfulness + context recall only** | **Faithfulness + context recall** | Precision punishes extra valid 2025 chunks. Relevancy/correctness need embeddings — RAGAS+Gemini would pull **Google embed**, violating local-BGE-M3 lock. |
+| RAGAS context | Raw hybrid hits; assembled XML; **post-drop `hit.text`** | **`generate_fn` wrap → kept texts** | Faithfulness must score vs what Gemini saw. Pre-drop would let 2024 look “faithful”. |
+| Live gate | Auto-detect Qdrant; always live; **`LIVE=1` opt-in** | **`LIVE=1` for golden tests**; default `pytest` offline | Keeps CI/dev green without GPU quota. Distinct from `RUN_LIVE_EMBEDDING=1`. |
+| RAGAS package | Latest 0.4.x; **pin 0.2.15** | **`ragas==0.2.15`** in `[eval]` extra | 0.4.x hard-imports removed `ChatVertexAI` from langchain-community. Judge via Gemini OpenAI-compatible endpoint (same key). |
