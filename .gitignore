@@ -40,6 +40,7 @@ context/
 plans/
 plans-atlantic/
 prompt.md
+docs/
 
 # Generated eval outputs (corpus + benchmark_eval.json stay tracked)
 data/eval/ragas_report.md

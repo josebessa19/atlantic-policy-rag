@@ -19,7 +19,7 @@ BM25_VECTOR_NAME = "bm25"
 PREFETCH_LIMIT = 20
 # Qdrant RRF pool (dense + BM25 prefetch). Assembly then keeps CONTEXT_LIMIT.
 DEFAULT_SEARCH_LIMIT = 20
-DEFAULT_CONTEXT_LIMIT = 3
+DEFAULT_CONTEXT_LIMIT = 5
 
 
 def embedding_model() -> str:

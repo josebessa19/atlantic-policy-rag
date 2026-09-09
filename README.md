@@ -38,7 +38,7 @@ curl -s http://localhost:8000/query -H "Content-Type: application/json" \
   -d "{\"query\":\"What is the laptop allowance for an engineer in Germany?\"}"
 ```
 
-OpenAPI: http://localhost:8000/docs
+OpenAPI: [http://localhost:8000/docs](http://localhost:8000/docs)
 
 **GPU in Docker (optional, NVIDIA + Docker Desktop WSL2):** same CUDA image; overlay injects the device. Default compose does **not** require NVIDIA so CPU-only reviewers still boot.
 
@@ -97,34 +97,37 @@ python -m src.eval.ragas_report
 # → data/eval/ragas_report.md (+ .json)
 ```
 
-| Flag / command | Needs | What it proves |
-|----------------|-------|----------------|
-| `pytest tests/ -q` | nothing live | Unit + offline assertion helpers |
-| `LIVE=1 pytest tests/eval/…` | Qdrant ingested + `GEMINI_API_KEY` | Five JSON categories against the real pipeline |
-| `python -m src.eval.ragas_report` | same + `[eval]` extra | Faithfulness + context recall dashboard |
+
+| Flag / command                    | Needs                              | What it proves                                 |
+| --------------------------------- | ---------------------------------- | ---------------------------------------------- |
+| `pytest tests/ -q`                | nothing live                       | Unit + offline assertion helpers               |
+| `LIVE=1 pytest tests/eval/…`      | Qdrant ingested + `GEMINI_API_KEY` | Five JSON categories against the real pipeline |
+| `python -m src.eval.ragas_report` | same + `[eval]` extra              | Faithfulness + context recall dashboard        |
+
 
 **Known flakiness:** free-tier Gemini RPM/RPD can 429 on live tests or RAGAS. Retry after a pause. LLM-as-judge scores vary; **do not retune the pipeline for RAGAS** — pytest citation/refusal contracts are authoritative.
 
 ## Decision Log
 
-| Decision | Options considered | Choice | Why |
-|----------|-------------------|--------|-----|
-| Parser | Docling / OCR / PDF stack; **hand `.txt` parser** | **`policy_txt`** | Corpus is three born-digital `.txt` files; no layout engine needed. |
-| Chunking | Fixed windows; LLM chunking; **structure-aware** | **Structure walk; tables atomic; ~500 tok / 50 overlap** | Keeps Germany matrix rows intact for TEST-02; sections stay citable. |
-| Dense embeddings | Gemini embed API; FastEmbed custom ONNX; **sentence-transformers BGE-M3** | **`BAAI/bge-m3` via sentence-transformers, 1024-d** | Reference M3 checkpoint. FastEmbed kept only for BM25. |
-| Sparse / lexical | M3 learned sparse / ColBERT; **classic BM25** | **FastEmbed `Qdrant/bm25` + Qdrant `Modifier.IDF`** | Identifier-safe (`€1,800`, `IT-SPEC-2025-A`). Brief asks for BM25. |
-| Fusion / rerank | Weighted blend; hand-rolled RRF; cross-encoder now; **Qdrant Fusion.RRF** | **Qdrant `Fusion.RRF`** (prefetch ~20 / return ~8) | Dense and BM25 scores are not on one scale. Cross-encoder is a later pool over top-k, not Part B. |
-| Point ids | String chunk id; uint hash; **UUID5** | **`uuid5(namespace, chunk.id)`** + payload `chunk_id` | Qdrant accepts UUID/uint64 only; UUID5 keeps upserts idempotent. |
-| Temporal drop | Drop 2024 at index time; prompt-only; **index both, drop at assembly** | **Strict A+D at assembly** — 2024 never in the prompt | Recency is metadata (`status`/`supersedes`). Demo can still show both docs in Qdrant. |
-| LLM | OpenAI; local LLM; **Gemini Flash** | **`gemini-2.5-flash`** (`GEMINI_API_KEY` generation only) | Free tier; retrieval stays local so Google quota does not break search. |
-| Refusal / skip LLM | Always call model; **empty / low fused RRF / injection** | **Skip Gemini** on empty/low retrieval and injection | Cheaper and safer than asking the model to be humble on failed retrieval. |
-| Demo client | Telegram / Streamlit; **OpenAPI** | **`/docs` + curl** | Deliverable is an API, not a chat widget. |
-| Docker GPU | CPU-only image; GPU-mandatory compose; **cu124 image + optional overlay** | **Same CUDA image; default compose no nvidia device** | Reviewers without NVIDIA still `compose up`. Overlay injects GPU on Docker Desktop WSL2. |
-| Python env | Base Anaconda; venv; **project conda** | **`atlantic-rag` (conda + cu124 torch)** | Isolates GPU torch; host path for pytest/RAGAS without image rebuilds. |
-| Eval split | RAGAS-only; pytest-only; **both** | **Pytest gate + RAGAS dashboard** | Pytest locks IDs/refusal/injection; RAGAS speaks metric language in interviews. |
-| RAGAS metrics | +precision; +relevancy; **faithfulness + context recall** | **Faithfulness + context recall** | Avoid Google embeddings via RAGAS. Contexts are post-drop texts. |
-| Live gate | Auto-detect Qdrant; always live; **`LIVE=1` opt-in** | **`LIVE=1` for golden tests** | Keeps default `pytest` offline-green. |
-| RAGAS package | Latest 0.4.x; **pin 0.2.15** | **`ragas==0.2.15`** in `[eval]` | 0.4.x breaks on removed LangChain imports. |
+
+| Decision           | Options considered                                                        | Choice                                                     | Why                                                                                               |
+| ------------------ | ------------------------------------------------------------------------- | ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| Parser             | Docling / OCR / PDF stack; **hand** `.txt` **parser**                     | `policy_txt`                                               | Corpus is three born-digital `.txt` files; no layout engine needed.                               |
+| Chunking           | Fixed windows; LLM chunking; **structure-aware**                          | **Structure walk; tables atomic; ~500 tok / 50 overlap**   | Keeps Germany matrix rows intact for TEST-02; sections stay citable.                              |
+| Dense embeddings   | Gemini embed API; FastEmbed custom ONNX; **sentence-transformers BGE-M3** | `BAAI/bge-m3` **via sentence-transformers, 1024-d**        | Reference M3 checkpoint. FastEmbed kept only for BM25.                                            |
+| Sparse / lexical   | M3 learned sparse / ColBERT; **classic BM25**                             | **FastEmbed** `Qdrant/bm25` **+ Qdrant** `Modifier.IDF`    | Identifier-safe (`€1,800`, `IT-SPEC-2025-A`). Brief asks for BM25.                                |
+| Fusion / rerank    | Weighted blend; hand-rolled RRF; cross-encoder now; **Qdrant Fusion.RRF** | **Qdrant** `Fusion.RRF` (prefetch ~20 / return ~8)         | Dense and BM25 scores are not on one scale. Cross-encoder is a later pool over top-k, not Part B. |
+| Point ids          | String chunk id; uint hash; **UUID5**                                     | `uuid5(namespace, chunk.id)` + payload `chunk_id`          | Qdrant accepts UUID/uint64 only; UUID5 keeps upserts idempotent.                                  |
+| Temporal drop      | Drop 2024 at index time; prompt-only; **index both, drop at assembly**    | **Strict drop at assembly** — 2024 never in the prompt     | Recency is metadata (`status`/`supersedes`). Demo can still show both docs in Qdrant.             |
+| LLM                | OpenAI; local LLM; **Gemini Flash**                                       | `gemini-3.5-flash-lite` (`GEMINI_API_KEY` generation only) | Free tier; retrieval stays local so Google quota does not break search.                           |
+| Refusal / skip LLM | Always call model; **empty / low fused RRF / injection**                  | **Skip Gemini** on empty/low retrieval and injection       | Cheaper and safer than asking the model to be humble on failed retrieval.                         |
+| Demo client        | Telegram / Streamlit; **OpenAPI**                                         | `/docs` **+ curl**                                         | Deliverable is an API, not a chat widget.                                                         |
+| Docker GPU         | CPU-only image; GPU-mandatory compose; **cu124 image + optional overlay** | **Same CUDA image; default compose no nvidia device**      | Reviewers without NVIDIA still `compose up`. Overlay injects GPU on Docker Desktop WSL2.          |
+| Python env         | Base Anaconda; venv; **project conda**                                    | `atlantic-rag` **(conda + cu124 torch)**                   | Isolates GPU torch; host path for pytest/RAGAS without image rebuilds.                            |
+| Eval split         | RAGAS-only; pytest-only; **both**                                         | **Pytest gate + RAGAS dashboard**                          | Pytest locks IDs/refusal/injection; RAGAS speaks metric language in interviews.                   |
+| RAGAS metrics      | +precision; +relevancy; **faithfulness + context recall**                 | **Faithfulness + context recall**                          | Avoid Google embeddings via RAGAS. Contexts are post-drop texts.                                  |
+| Live gate          | Auto-detect Qdrant; always live; `LIVE=1` **opt-in**                      | `LIVE=1` **for golden tests**                              | Keeps default `pytest` offline-green.                                                             |                                                  |
+
 
 ## Limitations
 
@@ -143,17 +146,17 @@ python -m src.eval.ragas_report
 - **Rerank pool:** cross-encoder on a **GPU pool over the fused top-k** (e.g. 50), not over 10M docs.
 - **BM25 distributed:** Qdrant sparse IDF is fine here; at 10M split lexical (OpenSearch/Elastic) from dense ANN.
 - **Eval sampling:** pytest on a labeled slice; RAGAS on a sample — never full-corpus LLM-judge.
-- **`index_version` cache:** key answers by `(query_hash, index_version)` so a reindex busts cache.
+- `index_version` **cache:** key answers by `(query_hash, index_version)` so a reindex busts cache.
 
 ## What I would do next
 
 - Cross-encoder **rerank pool** over fused top-k
 - **Langfuse** (or similar) request traces
-- Payload **`tenant_id` filter** at retrieval (still not fake multi-tenant ReBAC)
+- Payload `tenant_id` **filter** at retrieval (still not fake multi-tenant ReBAC)
 - PDF / layout parser when the corpus leaves `.txt`
 
 None of these are in the running Part B code.
 
 ## Live demo
 
-See [`docs/DEMO.md`](docs/DEMO.md) (~20 minutes, OpenAPI + curl against the five benchmark cases).
+See `[docs/DEMO.md](docs/DEMO.md)` (~20 minutes, OpenAPI + curl against the five benchmark cases).

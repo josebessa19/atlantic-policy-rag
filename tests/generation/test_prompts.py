@@ -31,6 +31,13 @@ def test_assemble_context_delimiters() -> None:
     assert "EMEA €1,800" in ctx
 
 
+def test_system_prompt_maps_job_titles_to_tiers() -> None:
+    lower = SYSTEM_PROMPT.lower()
+    assert "tier 1" in lower
+    assert "ai software engineer" in lower
+    assert "parental leave" in lower
+
+
 def test_user_message_wraps_question_not_system() -> None:
     msg = build_user_message("laptop Germany?", [])
     assert "<question>" in msg

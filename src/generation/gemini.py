@@ -11,14 +11,28 @@ from src.indexing.models import Hit
 
 logger = logging.getLogger(__name__)
 
-_TRANSIENT_MARKERS = ("429", "503", "UNAVAILABLE", "RESOURCE_EXHAUSTED", "overloaded")
+_TRANSIENT_MARKERS = (
+    "429",
+    "503",
+    "UNAVAILABLE",
+    "RESOURCE_EXHAUSTED",
+    "overloaded",
+    "UNEXPECTED_EOF",
+    "ConnectError",
+    "ConnectTimeout",
+    "ReadTimeout",
+    "SSL",
+)
 _MAX_ATTEMPTS = 3
 
 
 def _is_transient_gemini_error(exc: BaseException) -> bool:
     text = str(exc)
+    name = type(exc).__name__
     code = getattr(exc, "status_code", None) or getattr(exc, "code", None)
     if code in (429, 503):
+        return True
+    if name in {"ConnectError", "ConnectTimeout", "ReadTimeout", "RemoteProtocolError"}:
         return True
     return any(token in text for token in _TRANSIENT_MARKERS)
 
