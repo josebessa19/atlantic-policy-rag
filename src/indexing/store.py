@@ -7,6 +7,7 @@ from typing import Any, Sequence
 from qdrant_client import QdrantClient, models
 
 from src.ingestion.chunking.models import Chunk
+from src.ingestion.chunking.tokens import dense_index_text
 from src.indexing.config import (
     BM25_VECTOR_NAME,
     DEFAULT_SEARCH_LIMIT,
@@ -144,7 +145,8 @@ def index_chunks(
 
     texts = [c.text for c in chunks]
     if dense_vectors is None:
-        dense = embed_texts(texts)
+        # Dense: policy body only. Sparse BM25: prefixed text (ids / section titles).
+        dense = embed_texts([dense_index_text(t) for t in texts])
     else:
         if len(dense_vectors) != len(chunks):
             raise ValueError("dense_vectors length must match chunks")

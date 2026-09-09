@@ -17,7 +17,9 @@ DENSE_VECTOR_NAME = "dense"
 BM25_VECTOR_NAME = "bm25"
 
 PREFETCH_LIMIT = 20
-DEFAULT_SEARCH_LIMIT = 8
+# Qdrant RRF pool (dense + BM25 prefetch). Assembly then keeps CONTEXT_LIMIT.
+DEFAULT_SEARCH_LIMIT = 20
+DEFAULT_CONTEXT_LIMIT = 3
 
 
 def embedding_model() -> str:
@@ -41,6 +43,18 @@ def qdrant_collection() -> str:
         os.getenv("QDRANT_COLLECTION", DEFAULT_QDRANT_COLLECTION).strip()
         or DEFAULT_QDRANT_COLLECTION
     )
+
+
+def context_limit() -> int:
+    """Max chunks passed to Gemini after temporal drop (default 3)."""
+    raw = os.getenv("CONTEXT_LIMIT", str(DEFAULT_CONTEXT_LIMIT)).strip()
+    try:
+        n = int(raw)
+    except ValueError as exc:
+        raise ValueError(f"CONTEXT_LIMIT must be an int, got {raw!r}") from exc
+    if n < 1:
+        raise ValueError(f"CONTEXT_LIMIT must be >= 1, got {n}")
+    return n
 
 
 def auto_ingest() -> bool:

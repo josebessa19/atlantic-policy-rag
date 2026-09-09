@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from src.generation.prompts import assemble_context
 from src.guardrails.temporal import drop_superseded
+from backend.services.rag import take_context
 from src.indexing.models import Hit
 
 
@@ -40,3 +41,16 @@ def test_assembler_excludes_2024_after_drop() -> None:
     assert "POLICY-2025-002" in context
     assert "Fully remote" in context
     assert '<document id="POLICY-2025-002"' in context
+
+
+def test_take_context_keeps_top_three_after_drop() -> None:
+    hits = [
+        Hit(score=0.09, document_id="POLICY-2024-001", section="1", chunk_id="old", status="legacy", text="two days"),
+        Hit(score=0.08, document_id="POLICY-2025-002", section="1", chunk_id="a", text="fully remote"),
+        Hit(score=0.07, document_id="POLICY-2025-002", section="2", chunk_id="b", text="$750"),
+        Hit(score=0.06, document_id="IT-SPEC-2025-A", section="t", chunk_id="c", text="€1,800"),
+        Hit(score=0.05, document_id="IT-SPEC-2025-A", section="n", chunk_id="d", text="VP approval"),
+    ]
+    kept = take_context(drop_superseded(hits, {"POLICY-2024-001"}), limit=3)
+    assert [h.chunk_id for h in kept] == ["a", "b", "c"]
+    assert all(h.document_id != "POLICY-2024-001" for h in kept)

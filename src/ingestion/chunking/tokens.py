@@ -31,6 +31,17 @@ def format_bm25_prefix(
     return f"Document {document_id} ({status_label}) | Section: {section_label}"
 
 
+def dense_index_text(chunk_text: str) -> str:
+    """Body only for dense embeddings. BM25 / prompt text keep the prefix line."""
+    raw = (chunk_text or "").strip()
+    if not raw:
+        return raw
+    first, _, rest = raw.partition("\n")
+    if first.startswith("Document ") and " | Section: " in first and rest.strip():
+        return rest.strip()
+    return raw
+
+
 def embed_text(
     body: str,
     *,

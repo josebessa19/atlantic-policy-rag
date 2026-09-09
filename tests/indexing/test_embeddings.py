@@ -33,6 +33,20 @@ def test_embed_query_rejects_empty() -> None:
         emb_mod.embed_query("")
 
 
+def test_embed_query_uses_bge_prefix() -> None:
+    dim = DEFAULT_EMBEDDING_DIM
+    fake_vec = [0.1] * dim
+    mock_model = MagicMock()
+    mock_model.encode.return_value = [fake_vec]
+
+    with patch.object(emb_mod, "_get_model", return_value=mock_model):
+        emb_mod.embed_query("laptop Germany")
+
+    sent = mock_model.encode.call_args.args[0][0]
+    assert sent.startswith(emb_mod.QUERY_PREFIX)
+    assert sent.endswith("laptop Germany")
+
+
 def test_embed_texts_returns_expected_dim() -> None:
     dim = DEFAULT_EMBEDDING_DIM
     fake_vec = [0.1] * dim
@@ -40,7 +54,7 @@ def test_embed_texts_returns_expected_dim() -> None:
     mock_model = MagicMock()
     mock_model.encode.return_value = [fake_vec, fake_vec]
 
-    with patch("sentence_transformers.SentenceTransformer", return_value=mock_model):
+    with patch.object(emb_mod, "_get_model", return_value=mock_model):
         out = emb_mod.embed_texts(["a", "b"])
 
     assert len(out) == 2
@@ -52,7 +66,7 @@ def test_embed_texts_rejects_wrong_length() -> None:
     mock_model = MagicMock()
     mock_model.encode.return_value = [[0.1, 0.2]]
 
-    with patch("sentence_transformers.SentenceTransformer", return_value=mock_model):
+    with patch.object(emb_mod, "_get_model", return_value=mock_model):
         with pytest.raises(ValueError, match="length"):
             emb_mod.embed_texts(["a"])
 
@@ -62,7 +76,7 @@ def test_embed_texts_rejects_all_zeros() -> None:
     mock_model = MagicMock()
     mock_model.encode.return_value = [[0.0] * dim]
 
-    with patch("sentence_transformers.SentenceTransformer", return_value=mock_model):
+    with patch.object(emb_mod, "_get_model", return_value=mock_model):
         with pytest.raises(ValueError, match="all-zero"):
             emb_mod.embed_texts(["a"])
 

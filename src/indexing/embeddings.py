@@ -11,6 +11,9 @@ from typing import Sequence
 
 from src.indexing.config import embedding_dim, embedding_model
 
+# BGE retrieval query prefix (documents are encoded without this string).
+QUERY_PREFIX = "Represent this sentence for searching relevant passages: "
+
 logger = logging.getLogger(__name__)
 
 _model = None
@@ -85,7 +88,7 @@ def embed_texts(texts: Sequence[str]) -> list[list[float]]:
 
 
 def embed_query(query: str) -> list[float]:
-    """Embed a search query with the same local model."""
+    """Embed a search query (BGE query prefix; documents stay prefix-free)."""
     if query is None or not str(query).strip():
         raise ValueError("embed_query requires a non-empty query string")
-    return embed_texts([str(query).strip()])[0]
+    return embed_texts([QUERY_PREFIX + str(query).strip()])[0]

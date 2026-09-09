@@ -2,12 +2,16 @@
 
 from __future__ import annotations
 
+import logging
+
 from fastapi import APIRouter, Request
 
 from backend.schemas.query import QueryRequest, QueryResponse
-from backend.services.rag import answer_query
+from backend.services.rag import UNAVAILABLE_TEMPLATE, answer_query
 from src.indexing.config import qdrant_url
 from src.indexing.store import get_client
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -29,7 +33,11 @@ def health(request: Request) -> dict:
 def query(body: QueryRequest, request: Request) -> QueryResponse:
     """Stateless policy Q&A: retrieve → temporal drop → guardrails → generate."""
     supersedes = getattr(request.app.state, "active_supersedes", None)
-    return answer_query(
-        body.query,
-        active_supersedes=supersedes if supersedes is not None else None,
-    )
+    try:
+        return answer_query(
+            body.query,
+            active_supersedes=supersedes if supersedes is not None else None,
+        )
+    except Exception:
+        logger.exception("POST /query failed")
+        return QueryResponse(answer=UNAVAILABLE_TEMPLATE, refused=True, citations=[])

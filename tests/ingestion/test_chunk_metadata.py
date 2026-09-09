@@ -3,6 +3,7 @@
 from pathlib import Path
 
 from src.ingestion.pipeline import parse_dir
+from src.ingestion.chunking.tokens import dense_index_text
 
 RAW_DIR = Path(__file__).resolve().parents[2] / "data" / "raw"
 
@@ -16,6 +17,9 @@ def test_parse_dir_metadata_on_every_chunk() -> None:
         assert c.source.endswith(".txt")
         assert c.text.startswith("Document "), c.text[:50]
         assert c.id.startswith(f"{c.document_id}:")
+        body = dense_index_text(c.text)
+        assert body
+        assert not body.startswith("Document ")
 
 
 def test_parse_dir_deterministic() -> None:
